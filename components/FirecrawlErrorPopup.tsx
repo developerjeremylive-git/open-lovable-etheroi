@@ -31,6 +31,11 @@ export default function FirecrawlErrorPopup({ error, onClose }: FirecrawlErrorPo
   // Extract the specific error message from the Firecrawl error
   const extractErrorMessage = (errorString: string) => {
     try {
+      // Check for network errors like net::ERR_ABORTED
+      if (errorString.includes('net::ERR_ABORTED') || errorString.includes('TypeError: Failed to fetch')) {
+        return 'Error de conexión: No se pudo acceder al sitio web. Por favor, verifica la URL e intenta nuevamente o prueba con otro sitio web.';
+      }
+      
       // Try to find the JSON part in the error string
       const jsonMatch = errorString.match(/\{"success":false,"error":"([^"]+)"\}/);
       if (jsonMatch && jsonMatch[1]) {

@@ -367,11 +367,23 @@ export default function AISandboxPage() {
     setScreenshotError(null);
     
     try {
-      const response = await fetch('/api/create-ai-sandbox', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
+      let response;
+      try {
+        response = await fetch('/api/create-ai-sandbox', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+      } catch (fetchError: any) {
+        // Capturar errores de red como net::ERR_ABORTED
+        console.error('[createSandbox] Fetch error:', fetchError);
+        setLoading(false);
+        setShowLoadingBackground(false);
+        updateStatus('Error de conexión', false);
+        log(`Error de conexión: ${fetchError.message || 'No se pudo crear el sandbox'}`, 'error');
+        addChatMessage(`Error de conexión: No se pudo crear el sandbox. Por favor, intenta nuevamente.`, 'system');
+        return; // Detener la ejecución aquí
+      }
       
       const data = await response.json();
       console.log('[createSandbox] Response data:', data);
@@ -2002,14 +2014,43 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     
     try {
       addChatMessage('Scraping website content...', 'system');
-      const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
+      let scrapeResponse;
+      try {
+        scrapeResponse = await fetch('/api/scrape-url-enhanced', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+      } catch (fetchError: any) {
+        // Capturar errores de red como net::ERR_ABORTED
+        console.error('Fetch error:', fetchError);
+        setFirecrawlError(`TypeError: Failed to fetch - ${fetchError.message || 'Error de conexión'}`);
+        // Detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+        setIsPreparingDesign(false);
+        setLoadingStage(null);
+        setGenerationProgress(prev => ({
+          ...prev,
+          isGenerating: false,
+          isStreaming: false,
+          status: '',
+          files: prev.files
+        }));
+        return; // Detener la ejecución aquí
+      }
       
       if (!scrapeResponse.ok) {
-        throw new Error(`Scraping failed: ${scrapeResponse.status}`);
+        // Mostrar el error HTTP y detener el flujo de trabajo
+        setFirecrawlError(`Error: Scraping failed with HTTP status ${scrapeResponse.status}`);
+        setIsPreparingDesign(false);
+        setLoadingStage(null);
+        setGenerationProgress(prev => ({
+          ...prev,
+          isGenerating: false,
+          isStreaming: false,
+          status: '',
+          files: prev.files
+        }));
+        return; // Detener la ejecución aquí en lugar de lanzar un error
       }
       
       const scrapeData = await scrapeResponse.json();
@@ -2018,9 +2059,30 @@ Tip: I automatically detect and install npm packages from your code imports (lik
         // Check if this is a Firecrawl specific error
         if (scrapeData.error && scrapeData.error.includes('Firecrawl API error')) {
           setFirecrawlError(scrapeData.error);
-          throw new Error(scrapeData.error || 'Failed to scrape website');
+          // Detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí
         } else {
-          throw new Error(scrapeData.error || 'Failed to scrape website');
+          // Mostrar el error y detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+          setFirecrawlError(`Error: ${scrapeData.error || 'Error desconocido durante el scraping'}`);
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí en lugar de lanzar un error
         }
       }
       
@@ -2130,7 +2192,18 @@ Focus on the key sections and content, making it clean and modern while preservi
       });
       
       if (!aiResponse.ok) {
-        throw new Error(`AI generation failed: ${aiResponse.status}`);
+        // Mostrar el error y detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+        setFirecrawlError(`Error: AI generation failed with status ${aiResponse.status}`);
+        setIsPreparingDesign(false);
+        setLoadingStage(null);
+        setGenerationProgress(prev => ({
+          ...prev,
+          isGenerating: false,
+          isStreaming: false,
+          status: '',
+          files: prev.files
+        }));
+        return; // Detener la ejecución aquí en lugar de lanzar un error
       }
       
       const reader = aiResponse.body?.getReader();
@@ -2243,7 +2316,18 @@ Focus on the key sections and content, making it clean and modern while preservi
             setChatMessages(prev => prev.filter(msg => msg.content !== 'Waiting for sandbox to be ready...'));
           } catch (error: any) {
             addChatMessage('Sandbox creation failed. Cannot apply code.', 'system');
-            throw error;
+            // Mostrar el error y detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+            setFirecrawlError(`Error: Sandbox creation failed - ${error.message || 'Unknown error'}`);
+            setIsPreparingDesign(false);
+            setLoadingStage(null);
+            setGenerationProgress(prev => ({
+              ...prev,
+              isGenerating: false,
+              isStreaming: false,
+              status: '',
+              files: prev.files
+            }));
+            return; // Detener la ejecución aquí en lugar de lanzar un error
           }
         }
         
@@ -2284,7 +2368,18 @@ Focus on the key sections and content, making it clean and modern while preservi
           setActiveTab('preview');
         }, 1000); // Show completion briefly then switch
       } else {
-        throw new Error('Failed to generate recreation');
+        // Mostrar el error y detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+        setFirecrawlError('Error: Failed to generate recreation - No code was generated');
+        setIsPreparingDesign(false);
+        setLoadingStage(null);
+        setGenerationProgress(prev => ({
+          ...prev,
+          isGenerating: false,
+          isStreaming: false,
+          status: '',
+          files: prev.files
+        }));
+        return; // Detener la ejecución aquí en lugar de lanzar un error
       }
       
     } catch (error: any) {
@@ -2392,20 +2487,60 @@ Focus on the key sections and content, making it clean and modern while preservi
         
         // Screenshot is already being captured in parallel above
         
-        const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
+        let scrapeResponse;
+        try {
+          scrapeResponse = await fetch('/api/scrape-url-enhanced', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
+        } catch (fetchError: any) {
+          // Capturar errores de red como net::ERR_ABORTED
+          console.error('Fetch error:', fetchError);
+          setFirecrawlError(`TypeError: Failed to fetch - ${fetchError.message || 'Error de conexión'}`);
+          // Detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí
+        }
         
         if (!scrapeResponse.ok) {
-          throw new Error('Failed to scrape website');
+          // Mostrar el error HTTP y detener el flujo de trabajo
+          setFirecrawlError(`Error: Scraping failed with HTTP status ${scrapeResponse.status}`);
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí en lugar de lanzar un error
         }
         
         const scrapeData = await scrapeResponse.json();
         
         if (!scrapeData.success) {
-          throw new Error(scrapeData.error || 'Failed to scrape website');
+          // Mostrar el error y detener el flujo de trabajo
+          setFirecrawlError(`Error: ${scrapeData.error || 'Error desconocido durante el scraping'}`);
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí en lugar de lanzar un error
         }
         
         setUrlStatus(['Website scraped successfully!', 'Generating React app...']);
@@ -2488,7 +2623,18 @@ Focus on the key sections and content, making it clean and modern.`;
         });
         
         if (!aiResponse.ok || !aiResponse.body) {
-          throw new Error('Failed to generate code');
+          // Mostrar el error y detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+          setFirecrawlError(`Error: Failed to generate code - ${aiResponse.status}`);
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí en lugar de lanzar un error
         }
         
         const reader = aiResponse.body.getReader();
@@ -2685,7 +2831,18 @@ Focus on the key sections and content, making it clean and modern.`;
             }]
           }));
         } else {
-          throw new Error('Failed to generate recreation');
+          // Mostrar el error y detener el flujo de trabajo para permitir que el usuario escriba otro prompt
+          setFirecrawlError('Error: Failed to generate recreation - No code was generated');
+          setIsPreparingDesign(false);
+          setLoadingStage(null);
+          setGenerationProgress(prev => ({
+            ...prev,
+            isGenerating: false,
+            isStreaming: false,
+            status: '',
+            files: prev.files
+          }));
+          return; // Detener la ejecución aquí en lugar de lanzar un error
         }
         
         setUrlInput('');
