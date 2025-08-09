@@ -212,9 +212,33 @@ export default function AISandboxPage() {
       checkSandboxStatus();
     };
     
+    // Handle tab/window close to kill sandbox
+    const handleBeforeUnload = async () => {
+      console.log('[beforeunload] Closing sandbox before page unload...');
+      if (sandboxData?.sandboxId) {
+        try {
+          // Send request to kill sandbox when page is closed
+          await fetch('/api/kill-sandbox', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // Use keepalive to ensure the request completes even if page is closing
+            keepalive: true
+          });
+          console.log('[beforeunload] Sandbox kill request sent');
+        } catch (error) {
+          console.error('[beforeunload] Error killing sandbox:', error);
+        }
+      }
+    };
+    
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [sandboxData]); // Add sandboxData as dependency to ensure we have the latest ID
 
   useEffect(() => {
     if (chatMessagesRef.current) {
@@ -516,7 +540,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                   } else if (data.message.includes('Creating files') || data.message.includes('Applying')) {
                     setCodeApplicationState({ 
                       stage: 'applying',
-                      filesGenerated: results.filesCreated 
+                      filesGenerated: data.filesCreated 
                     });
                   }
                   break;
@@ -677,22 +701,22 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           log(data.explanation);
         }
         
-        if (data.autoCompleted) {
+        if (data.results?.autoCompleted) {
           log('Auto-generating missing components...', 'command');
           
-          if (data.autoCompletedComponents) {
+          if (data.results?.autoCompletedComponents) {
             setTimeout(() => {
               log('Auto-generated missing components:', 'info');
-              data.autoCompletedComponents.forEach((comp: string) => {
+              data.results.autoCompletedComponents.forEach((comp: string) => {
                 log(`  ${comp}`, 'command');
               });
             }, 1000);
           }
-        } else if (data.warning) {
-          log(data.warning, 'error');
+        } else if (data.results?.warning) {
+          log(data.results.warning, 'error');
           
-          if (data.missingImports && data.missingImports.length > 0) {
-            const missingList = data.missingImports.join(', ');
+          if (data.results?.missingImports && data.results.missingImports.length > 0) {
+            const missingList = data.results.missingImports.join(', ');
             addChatMessage(
               `Ask me to "create the missing components: ${missingList}" to fix these import errors.`,
               'system'
@@ -702,7 +726,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
         
         log('Code applied successfully!');
         console.log('[applyGeneratedCode] Response data:', data);
-        console.log('[applyGeneratedCode] Debug info:', data.debug);
+        console.log('[applyGeneratedCode] Debug info:', data.results?.debug);
         console.log('[applyGeneratedCode] Current sandboxData:', sandboxData);
         console.log('[applyGeneratedCode] Current iframe element:', iframeRef.current);
         console.log('[applyGeneratedCode] Current iframe src:', iframeRef.current?.src);
@@ -997,7 +1021,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                       // Create a map of edited files
                       const editedFiles = new Set(
                         generationProgress.files
-                          .filter(f => f.edited)
+                          .filter(f => f.completed)
                           .map(f => f.path)
                       );
                       
@@ -1010,7 +1034,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                         if (!fileTree[dir]) fileTree[dir] = [];
                         fileTree[dir].push({
                           name: fileName,
-                          edited: file.edited || false
+                          edited: file.completed || false
                         });
                       });
                       
@@ -1633,9 +1657,8 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                             {
                               ...updatedState.files[existingFileIndex],
                               content: fileContent.trim(),
-                              type: fileType,
-                              completed: true,
-                              edited: true
+                            type: fileType,
+                            completed: true
                             },
                             ...updatedState.files.slice(existingFileIndex + 1)
                           ];
@@ -1643,10 +1666,9 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                           // Add new file
                           updatedState.files = [...updatedState.files, {
                             path: filePath,
-                            content: fileContent.trim(),
-                            type: fileType,
-                            completed: true,
-                            edited: false
+                          content: fileContent.trim(),
+                          type: fileType,
+                          completed: true
                           }];
                         }
                         
@@ -2571,8 +2593,7 @@ Focus on the key sections and content, making it clean and modern.`;
                               ...updatedState.files[existingFileIndex],
                               content: fileContent.trim(),
                               type: fileType,
-                              completed: true,
-                              edited: true
+                              completed: true
                             },
                             ...updatedState.files.slice(existingFileIndex + 1)
                           ];
@@ -2580,10 +2601,9 @@ Focus on the key sections and content, making it clean and modern.`;
                           // Add new file
                           updatedState.files = [...updatedState.files, {
                             path: filePath,
-                            content: fileContent.trim(),
-                            type: fileType,
-                            completed: true,
-                            edited: false
+                          content: fileContent.trim(),
+                          type: fileType,
+                          completed: true
                           }];
                         }
                         
@@ -2977,7 +2997,7 @@ Focus on the key sections and content, making it clean and modern.`;
                 >
                   {appConfig.ai.availableModels.map(model => (
                     <option key={model} value={model}>
-                      {appConfig.ai.modelDisplayNames[model] || model}
+                      {(appConfig.ai.modelDisplayNames as Record<string, string>)[model] || model}
                     </option>
                   ))}
                 </select>
@@ -3013,7 +3033,7 @@ Focus on the key sections and content, making it clean and modern.`;
           >
             {appConfig.ai.availableModels.map(model => (
               <option key={model} value={model}>
-                {appConfig.ai.modelDisplayNames[model] || model}
+                {(appConfig.ai.modelDisplayNames as Record<string, string>)[model] || model}
               </option>
             ))}
           </select>
