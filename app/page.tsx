@@ -22,6 +22,8 @@ import {
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import CodeApplicationProgress, { type CodeApplicationState } from '@/components/CodeApplicationProgress';
+import SandboxCarousel from '@/components/SandboxCarousel';
+import FirecrawlErrorPopup from '@/components/FirecrawlErrorPopup';
 
 interface SandboxData {
   sandboxId: string;
@@ -64,6 +66,7 @@ export default function AISandboxPage() {
     const modelParam = searchParams.get('model');
     return appConfig.ai.availableModels.includes(modelParam || '') ? modelParam! : appConfig.ai.defaultModel;
   });
+  const [firecrawlError, setFirecrawlError] = useState<string | null>(null);
   const [urlOverlayVisible, setUrlOverlayVisible] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [urlStatus, setUrlStatus] = useState<string[]>([]);
@@ -2036,7 +2039,13 @@ Tip: I automatically detect and install npm packages from your code imports (lik
       const scrapeData = await scrapeResponse.json();
       
       if (!scrapeData.success) {
-        throw new Error(scrapeData.error || 'Failed to scrape website');
+        // Check if this is a Firecrawl specific error
+        if (scrapeData.error && scrapeData.error.includes('Firecrawl API error')) {
+          setFirecrawlError(scrapeData.error);
+          throw new Error(scrapeData.error || 'Failed to scrape website');
+        } else {
+          throw new Error(scrapeData.error || 'Failed to scrape website');
+        }
       }
       
       addChatMessage(`Scraped ${scrapeData.content.length} characters from ${url}`, 'system');
@@ -2745,6 +2754,13 @@ Focus on the key sections and content, making it clean and modern.`;
 
   return (
     <div className="font-sans bg-background text-foreground h-screen flex flex-col">
+      {/* Firecrawl Error Popup */}
+      {firecrawlError && (
+        <FirecrawlErrorPopup 
+          error={firecrawlError} 
+          onClose={() => setFirecrawlError(null)} 
+        />
+      )}
       {/* Home Screen Overlay */}
       {showHomeScreen && (
         <div className={`fixed inset-0 z-50 transition-opacity duration-500 ${homeScreenFading ? 'opacity-0' : 'opacity-100'}`}>
@@ -3337,6 +3353,27 @@ Focus on the key sections and content, making it clean and modern.`;
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </button>
+            </div>
+            
+            {/* Sandbox Carousel */}
+            <div className="mt-4">
+              <SandboxCarousel 
+                onSelectSandbox={(sandbox) => {
+                  if (sandbox.sandboxId !== sandboxData?.sandboxId) {
+                    // Aquí podrías implementar la lógica para cambiar a otro sandbox
+                    // Por ahora solo mostramos un mensaje
+                    addChatMessage(`Cambiando al sandbox: ${sandbox.sandboxId}`, 'system');
+                    setSandboxData(sandbox);
+                    
+                    // Actualizar URL con el nuevo sandbox ID
+                    const newParams = new URLSearchParams(searchParams.toString());
+                    newParams.set('sandbox', sandbox.sandboxId);
+                    newParams.set('model', aiModel);
+                    router.push(`/?${newParams.toString()}`, { scroll: false });
+                  }
+                }}
+                currentSandboxId={sandboxData?.sandboxId}
+              />
             </div>
           </div>
         </div>
