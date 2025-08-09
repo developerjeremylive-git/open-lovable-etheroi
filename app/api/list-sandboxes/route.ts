@@ -9,14 +9,16 @@ export async function GET() {
     
     // Si no hay sandbox activo, devolver lista vacía
     if (!activeSandbox || !sandboxData) {
+      console.log('[list-sandboxes] No active sandbox found');
       return NextResponse.json({ success: true, sandboxes: [] });
     }
     
-    // Verificar si el sandbox está saludable
-    const isHealthy = activeSandbox.lastHealthCheck && 
-      (new Date().getTime() - new Date(activeSandbox.lastHealthCheck).getTime() < 30000);
+    // Consideramos que el sandbox está saludable si existe
+    // No dependemos de lastHealthCheck que podría no estar definido
+    const isHealthy = true;
     
     if (!isHealthy) {
+      console.log('[list-sandboxes] Sandbox exists but is not healthy');
       return NextResponse.json({ success: true, sandboxes: [] });
     }
     
@@ -24,6 +26,7 @@ export async function GET() {
     // o un servicio para obtener todos los sandboxes activos del usuario
     // Por ahora, solo devolvemos el sandbox activo actual
     
+    console.log('[list-sandboxes] Returning active sandbox:', sandboxData.sandboxId);
     return NextResponse.json({
       success: true,
       sandboxes: [sandboxData]

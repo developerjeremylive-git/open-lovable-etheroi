@@ -215,33 +215,9 @@ export default function AISandboxPage() {
       checkSandboxStatus();
     };
     
-    // Handle tab/window close to kill sandbox
-    const handleBeforeUnload = async () => {
-      console.log('[beforeunload] Closing sandbox before page unload...');
-      if (sandboxData?.sandboxId) {
-        try {
-          // Send request to kill sandbox when page is closed
-          await fetch('/api/kill-sandbox', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            // Use keepalive to ensure the request completes even if page is closing
-            keepalive: true
-          });
-          console.log('[beforeunload] Sandbox kill request sent');
-        } catch (error) {
-          console.error('[beforeunload] Error killing sandbox:', error);
-        }
-      }
-    };
-    
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [sandboxData]); // Add sandboxData as dependency to ensure we have the latest ID
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (chatMessagesRef.current) {

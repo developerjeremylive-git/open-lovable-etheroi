@@ -43,12 +43,11 @@ export default function SandboxCarousel({ onSelectSandbox, currentSandboxId }: S
   const fetchSandboxes = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/sandbox-status');
+      const response = await fetch('/api/list-sandboxes');
       const data = await response.json();
       
-      if (data.success && data.active && data.healthy && data.sandboxData) {
-        // For now we only have one sandbox, but we'll structure this for multiple
-        setSandboxes([data.sandboxData]);
+      if (data.success && Array.isArray(data.sandboxes)) {
+        setSandboxes(data.sandboxes);
       } else {
         setSandboxes([]);
       }
