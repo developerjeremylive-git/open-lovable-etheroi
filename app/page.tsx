@@ -3125,24 +3125,6 @@ Focus on the key sections and content, making it clean and modern.`;
                   )}
               </form>
               
-              {/* Sandbox Carousel */}
-              <div className="mt-4 max-w-3xl mx-auto">
-                <SandboxCarousel 
-                  onSelectSandbox={(sandbox) => {
-                    if (sandbox.sandboxId !== sandboxData?.sandboxId) {
-                      setSandboxData(sandbox);
-                      const params = new URLSearchParams(searchParams);
-                      params.set('sandbox', sandbox.sandboxId);
-                      if (aiModel) {
-                        params.set('model', aiModel);
-                      }
-                      router.push(`/?${params.toString()}`);
-                    }
-                  }}
-                  currentSandboxId={sandboxData?.sandboxId}
-                />
-              </div>
-              
               {/* Model Selector */}
               <div className="mt-6 flex items-center justify-center animate-[fadeIn_1s_ease-out]">
                 <select
