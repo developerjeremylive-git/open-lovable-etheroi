@@ -2975,6 +2975,20 @@ Focus on the key sections and content, making it clean and modern.`;
                 >
                   Re-imagine any website, in seconds.
                 </motion.p>
+                
+                {/* Multi-Agent Mode Button */}
+                <div className="mt-6 flex justify-center">
+                  <a
+                    href="/multi-agent"
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <span className="mr-3 text-xl">🚀</span>
+                    <div className="text-left">
+                      <div className="text-lg font-bold">CodeMind Collective</div>
+                      <div className="text-sm opacity-90">Revolutionary Multi-Agent Development</div>
+                    </div>
+                  </a>
+                </div>
               </div>
               
               <form onSubmit={handleHomeScreenSubmit} className="mt-5 max-w-3xl mx-auto">
